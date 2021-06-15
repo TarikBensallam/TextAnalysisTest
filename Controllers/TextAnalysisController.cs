@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.TextAnalytics;
+using AzureTextAnalysisTest.Models;
 using AzureTextAnalysisTest.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AzureTextAnalysisTest.Controllers
@@ -22,8 +24,9 @@ namespace AzureTextAnalysisTest.Controllers
             Tservice = new TextAnalysisService();
         }
 
+      
         [HttpGet]
-        public IActionResult GetLanguage(string doc)
+        public IActionResult GetLanguage()
         {
 
             return Ok(Tservice.GetLanguage());
@@ -51,5 +54,43 @@ namespace AzureTextAnalysisTest.Controllers
 
             return Ok(Tservice.GetSentimentMultipleDocs());
         }
+
+        //Recevoir un object contenant les reponses aux 4 questions et renvoyer la langue de ces 4 reponses 
+        [HttpPost]
+        [Route("OneAnswerLanguage")]
+        public IActionResult GetLanguageAnswer([FromBody] StudentAnswer res)
+        {
+
+            return Ok(Tservice.GetLanguage(res));
+        }
+
+        //Recevoir un object contenant les reponses aux 4 questions et renvoyer le sentiment de ces 4 reponses 
+        [HttpPost]
+        [Route("OneAnswerFeeling")]
+        public IActionResult GetSentimentAnswers([FromBody] StudentAnswer res)
+        {
+
+            return Ok(Tservice.GetSentiment(res));
+        }
+
+        //Recevoir plusieurs reponses contenant les reponses aux 4 questions et renvoyer le nombre des reponses ( positives , negatives ,neutre ,mixte )
+        [HttpPost]
+        [Route("AllAnswersFeeling")]
+        public IActionResult GetSentimentJson([FromBody] StudentAnswer[] res)
+        {
+           
+            return Ok(Tservice.GetSentimentJSON(res));
+        }
+
+        //Recevoir plusieurs reponses contenant les reponses aux 4 questions et renvoyer le nombre des reponses ( positives , negatives ,neutre ,mixte )
+        [HttpPost]
+        [Route("KeyWords")]
+        public IActionResult GetKeyWords([FromBody] StudentAnswer[] res)
+        {
+
+            return Ok(Tservice.GetKeyWords(res));
+        }
+
+
     }
 }

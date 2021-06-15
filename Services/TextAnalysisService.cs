@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.AI.TextAnalytics;
+using AzureTextAnalysisTest.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,6 +33,7 @@ namespace AzureTextAnalysisTest.Services
 
         static string stdreply = " I think the course was great .However,i didn't like the fact that most of it was just theory. ";
 
+        static string realAnswer = "This course is very useful and clear. The teacher was clear and explained well the theory and exercices. ;no;Zoom is not very adapted to this course, but of course we know it is not your fault;";
 
         List<string> docs = new List<string>()
        {
@@ -56,7 +58,7 @@ namespace AzureTextAnalysisTest.Services
 
             try
             {
-                Response<DetectedLanguage> response = client.DetectLanguage(frenchEnglish);
+                Response<DetectedLanguage> response = client.DetectLanguage(realAnswer);
 
                 DetectedLanguage language = response.Value;
                 //string result = $"Detected language {language.Name} with confidence score {language.ConfidenceScore}.";
@@ -76,7 +78,7 @@ namespace AzureTextAnalysisTest.Services
 
             try
             {
-                DocumentSentiment docSentiment = client.AnalyzeSentiment(stdreply);
+                DocumentSentiment docSentiment = client.AnalyzeSentiment(document2);
                 /*
                  Sentiment sentiment = new Sentiment();
                  sentiment.Feeling=docSentiment.Sentiment;
@@ -139,6 +141,141 @@ namespace AzureTextAnalysisTest.Services
 
         }
 
-        
+        // Get language of four questions
+        public Response<DetectedLanguage> GetLanguage(StudentAnswer answer)
+        {
+
+            try
+            {
+                
+                string toDetectLanguage = $"{answer.AnswerQst1} {answer.AnswerQst2} {answer.AnswerQst3} {answer.AnswerQst4}";
+                Response<DetectedLanguage> response = client.DetectLanguage(toDetectLanguage);
+                
+                DetectedLanguage language = response.Value;
+                //string result = $"Detected language {language.Name} with confidence score {language.ConfidenceScore}.";
+                return response;
+
+            }
+            catch (RequestFailedException ex)
+            {
+                throw new Exception("Une exception à été lévée au moment de l'utilisation de " + nameof(this.GetLanguage) + ": " + ex.Message);
+
+            }
+
+        }
+        public DocumentSentiment GetSentiment(StudentAnswer answer)
+        {
+
+            try
+            {
+                string toAnalyse = $"{answer.AnswerQst1} {answer.AnswerQst2} {answer.AnswerQst3} {answer.AnswerQst4}";
+                DocumentSentiment docSentiment = client.AnalyzeSentiment(toAnalyse);
+              
+                return docSentiment;
+
+            }
+            catch (Exception ex)
+            {
+
+                throw new Exception("Une exception à été lévée au moment de l'utilisation de " + nameof(this.GetSentiment) + ": " + ex.Message);
+            }
+
+        }
+        public FinalResponse GetSentimentJSON(StudentAnswer[] ToutesReponses)
+        {
+
+            try
+            {
+                FinalResponse result = new FinalResponse();
+                //vars to add keyphrases 
+                List<string> PositivePhrases = new List<string>();
+                List<string> NegativePhrases = new List<string>();
+
+                foreach (StudentAnswer answer in ToutesReponses)
+                {
+                    string toAnalyse2 = $"{answer.AnswerQst1} {answer.AnswerQst2} {answer.AnswerQst3} {answer.AnswerQst4}";
+                    DocumentSentiment docSentiment2 = client.AnalyzeSentiment(toAnalyse2);
+                    
+                    Response<DetectedLanguage> response = client.DetectLanguage(toAnalyse2);
+                    DetectedLanguage language = response.Value;
+                    
+                    // Code pour determiner les languages utilisées et le nombre des fois
+                    if (result.LangaugesUsed.ContainsKey(language.Name))
+                        result.LangaugesUsed[language.Name]++;
+                    else
+                        result.LangaugesUsed.Add(language.Name, 1);
+                    switch ((int)docSentiment2.Sentiment)
+                    {
+                        case 0:
+                            result.nbrAnswerPos++;
+                            break;
+                        case 1:
+                            result.nbrAnswerNeutre++;
+                            break;
+                        case 2:
+                            result.nbrAnswerNeg++;
+                            break;
+                        case 3:
+                            result.nbrAnswerMix++;
+                            break;
+                    }
+                   
+
+                    // calling the service if sentiment is positive 
+                    if ((int)docSentiment2.Sentiment == 0)
+                    {
+                        Response<KeyPhraseCollection> responseKeyphrase = client.ExtractKeyPhrases(toAnalyse2);
+                        foreach(string s in responseKeyphrase.Value)
+                        {
+                            PositivePhrases.Add(s);
+                        }
+                    }
+                    else if((int)docSentiment2.Sentiment == 2)
+                    {
+                        Response<KeyPhraseCollection> responseKeyphrase = client.ExtractKeyPhrases(toAnalyse2);
+                        foreach (string s in responseKeyphrase.Value)
+                        {
+                            NegativePhrases.Add(s);
+                        }
+                    }
+                }
+                result.Keyphrases.Add("PositiveKeyWords", PositivePhrases);
+                result.Keyphrases.Add("NegativeKeyWords", NegativePhrases);
+
+                return result;
+
+            }
+            catch (Exception ex)
+            {
+
+                throw new Exception("Une exception à été lévée au moment de l'utilisation de " + nameof(this.GetSentimentJSON) + ": " + ex.Message);
+            }
+
+        }
+
+        public Response<KeyPhraseCollection> GetKeyWords(StudentAnswer[] res)
+        {
+
+            try
+            {
+                List<string> ListDocument = new List<string>();
+                string answerC;
+                foreach (StudentAnswer answer in res)
+                {
+                    answerC = $"{answer.AnswerQst1} {answer.AnswerQst2} {answer.AnswerQst3} {answer.AnswerQst4}";
+                    ListDocument.Add(answerC);
+
+                }
+                Response<KeyPhraseCollection> response = client.ExtractKeyPhrases(ListDocument[3]);
+             return response;
+
+            }
+            catch (RequestFailedException ex)
+            {
+                throw new Exception("Une exception à été lévée au moment de l'utilisation de " + nameof(this.GetKeyWords) + ": " + ex.Message);
+
+            }
+
+        }
     }
 }
